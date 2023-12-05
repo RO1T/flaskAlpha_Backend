@@ -1,25 +1,6 @@
-from flask import Flask, render_template
-from flask_restful import Api, Resource, reqparse, abort
-from flask_sqlalchemy import SQLAlchemy
+from flask_restful import Resource, reqparse, abort
 from werkzeug.security import generate_password_hash, check_password_hash
-
-app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres:1@localhost:5432/postgres"
-api = Api()
-db = SQLAlchemy(app)
-
-class users(db.Model):
-    def __init__(self, login, password, email, role):
-        self.login = login
-        self.password = password
-        self.email = email
-        self.role = role
-
-    id = db.Column(db.Integer, primary_key=True)
-    login = db.Column(db.String(80), unique=True, nullable=False)
-    password = db.Column(db.String(), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    role = db.Column(db.String(1), nullable=False)
+from app.models import db, users
 
 parser = reqparse.RequestParser()
 parser.add_argument("login", type=str)
@@ -44,7 +25,6 @@ class Register(Resource):
         except Exception as e:
             abort(500, "user registering error")
 
-api.add_resource(Register, "/api/register/", "/api/b/register/")
 class GetUsers(Resource):
     def get(self):
         try:
@@ -56,7 +36,6 @@ class GetUsers(Resource):
             return users_slv, 200
         except Exception as e:
             abort(500, message="users getting error")
-api.add_resource(GetUsers,'/api/users/')
 
 class Login(Resource):
     def post(self):
@@ -71,12 +50,3 @@ class Login(Resource):
             return {"message": "user is not found"}, 404
         except Exception as e:
             abort(500, message="user getting error")
-api.add_resource(Login, "/api/login/", "/api/b/login/")
-api.init_app(app)
-
-@app.route("/")
-def index():
-    return render_template('index.html')
-
-if __name__ == "__main__":
-    app.run(debug=True, port=3000, host='127.0.0.1')
