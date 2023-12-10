@@ -2,11 +2,11 @@ from flask_restful import Resource, reqparse, abort
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.models import db, users
 
-parser = reqparse.RequestParser()
-parser.add_argument("login", type=str)
-parser.add_argument("password", type=str)
-parser.add_argument("email", type=str)
-parser.add_argument("role", type=str)
+registerParser = reqparse.RequestParser()
+registerParser.add_argument("login", type=str)
+registerParser.add_argument("password", type=str)
+registerParser.add_argument("email", type=str)
+registerParser.add_argument("role", type=str)
 
 loginParser = reqparse.RequestParser()
 loginParser.add_argument("login", type=str)
@@ -15,7 +15,7 @@ loginParser.add_argument("password", type=str)
 class Register(Resource):
     def post(self):
         try:
-            user = parser.parse_args()
+            user = registerParser.parse_args()
             user["password"] = generate_password_hash(user["password"])
             new_user = users(login=user["login"], password=user["password"],
                              email=user["email"], role=user["role"])

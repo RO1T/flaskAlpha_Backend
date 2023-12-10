@@ -15,3 +15,22 @@ class users(db.Model):
     password = db.Column(db.String(), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     role = db.Column(db.String(1), nullable=False)
+    survey = db.relationship("surveys", backref="users")
+
+class surveys(db.Model):
+    def __init__(self, title, description, logoPosition, date_creation, pages):
+        self.title = title
+        self.description = description
+        self.logoPosition = logoPosition
+        self.date_creation = date_creation
+        self.pages = pages
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(), nullable=False)
+    description = db.Column(db.String())
+    logoPosition = db.Column(db.String())
+    date_creation = db.Column(db.Date(), nullable=False)
+    pages = db.Column(ARRAY(JSONB), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+
+
