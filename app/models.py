@@ -1,7 +1,12 @@
+from flask_jwt_extended import JWTManager
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.postgresql import JSONB, ARRAY
 
 db = SQLAlchemy()
+
+class tokenblocklist(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    jti = db.Column(db.String(36), nullable=False, index=True)
 
 class users(db.Model):
     def __init__(self, login, hash_password, email, role):

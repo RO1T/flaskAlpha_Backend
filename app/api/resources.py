@@ -1,7 +1,7 @@
 from flask_restful import Resource, reqparse, abort
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required
-from app.models import db, users
+from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt
+from app.models import db, users, tokenblocklist
 
 registerParser = reqparse.RequestParser()
 registerParser.add_argument("login", type=str)
@@ -64,6 +64,18 @@ class Login(Resource):
 class Secret(Resource):
     @jwt_required()
     def get(self):
-        return {
-            'answer': 42
-        }
+        return {'answer': 42}
+class RefreshToken(Resource):
+    @jwt_required(refresh=True)
+    def post(self):
+        identity = get_jwt_identity()
+        access_token = create_access_token(identity=identity)
+        return {"access_token": access_token}, 200
+
+class Logout(Resource):
+    @jwt_required()
+    def delete(self):
+        jti = get_jwt()["jti"]
+        db.session.add(tokenblocklist(jti=jti))
+        db.session.commit()
+        return {"msg": "JWT revoked"}, 200
