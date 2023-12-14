@@ -1,7 +1,7 @@
-from flask_restful import Resource, reqparse, abort
+from flask_restful import Resource, reqparse
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt
-from app.models import db, users, tokenblocklist
+from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt, get_current_user
+from app.models import db, users, tokenblocklist, surveys
 
 registerParser = reqparse.RequestParser()
 registerParser.add_argument("login", type=str)
@@ -12,6 +12,13 @@ registerParser.add_argument("role", type=str)
 loginParser = reqparse.RequestParser()
 loginParser.add_argument("login", type=str)
 loginParser.add_argument("password", type=str)
+
+surveyCreateParser = reqparse.RequestParser()
+surveyCreateParser.add_argument("title", type=str)
+surveyCreateParser.add_argument("description", type=str)
+surveyCreateParser.add_argument("logoPosition", type=str)
+surveyCreateParser.add_argument("date_creation", type=str)
+surveyCreateParser.add_argument("pages", type=list)
 
 class Register(Resource):
     def post(self):
@@ -24,8 +31,6 @@ class Register(Resource):
         try:
             db.session.add(new_user)
             db.session.commit()
-            access_token = create_access_token(identity=user['login'])
-            refresh_token = create_refresh_token(identity=user['login'])
             return {'message': "user was created"}, 201
         except Exception as e:
             return {"message": "Something went wrong"}, 500
@@ -61,6 +66,14 @@ class Login(Resource):
         except Exception as e:
             {"message": "Something went wrong"}, 500
 
+class Logout(Resource):
+    @jwt_required()
+    def delete(self):
+        jti = get_jwt()["jti"]
+        db.session.add(tokenblocklist(jti=jti))
+        db.session.commit()
+        return {"msg": "JWT revoked"}, 200
+
 class Secret(Resource):
     @jwt_required()
     def get(self):
@@ -72,10 +85,15 @@ class RefreshToken(Resource):
         access_token = create_access_token(identity=identity)
         return {"access_token": access_token}, 200
 
-class Logout(Resource):
+class CreateSurvey(Resource):
     @jwt_required()
-    def delete(self):
-        jti = get_jwt()["jti"]
-        db.session.add(tokenblocklist(jti=jti))
+    def post(self):
+        survey = surveyCreateParser.parse_args()
+        user = users.query.filter_by(login=get_current_user()).first()
+        new_survey = surveys(title=survey["title"], description=survey["description"],
+                             logoPosition=survey["logoPosition"], date_creation=survey["date_creation"],
+                             pages=survey["pages"], user_id=user.id)
+        db.session.add(new_survey)
         db.session.commit()
-        return {"msg": "JWT revoked"}, 200
+        return {"msg": "success"}
+
