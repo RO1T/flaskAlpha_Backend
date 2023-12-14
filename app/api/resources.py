@@ -69,31 +69,36 @@ class Login(Resource):
 class Logout(Resource):
     @jwt_required()
     def delete(self):
-        jti = get_jwt()["jti"]
-        db.session.add(tokenblocklist(jti=jti))
-        db.session.commit()
-        return {"msg": "JWT revoked"}, 200
+        try:
+            jti = get_jwt()["jti"]
+            db.session.add(tokenblocklist(jti=jti))
+            db.session.commit()
+            return {"msg": "JWT revoked"}, 200
+        except Exception as e:
+            return {"msg": "logout error"}, 500
 
-class Secret(Resource):
-    @jwt_required()
-    def get(self):
-        return {'answer': 42}
 class RefreshToken(Resource):
     @jwt_required(refresh=True)
     def post(self):
-        identity = get_jwt_identity()
-        access_token = create_access_token(identity=identity)
-        return {"access_token": access_token}, 200
+        try:
+            identity = get_jwt_identity()
+            access_token = create_access_token(identity=identity)
+            return {"access_token": access_token}, 200
+        except Exception as e:
+            return {"msg": "refresh error"}, 500
 
 class CreateSurvey(Resource):
     @jwt_required()
     def post(self):
-        survey = surveyCreateParser.parse_args()
-        user = users.query.filter_by(login=get_current_user()).first()
-        new_survey = surveys(title=survey["title"], description=survey["description"],
-                             logoPosition=survey["logoPosition"], date_creation=survey["date_creation"],
-                             pages=survey["pages"], user_id=user.id)
-        db.session.add(new_survey)
-        db.session.commit()
-        return {"msg": "success"}
+        try:
+            survey = surveyCreateParser.parse_args()
+            user = users.query.filter_by(login=get_current_user()).first()
+            new_survey = surveys(title=survey["title"], description=survey["description"],
+                                 logoPosition=survey["logoPosition"], date_creation=survey["date_creation"],
+                                pages=survey["pages"], user_id=user.id)
+            db.session.add(new_survey)
+            db.session.commit()
+            return {"msg": "success"}, 201
+        except Exception as e:
+            return {"msg": f"create survey error"}, 500
 
