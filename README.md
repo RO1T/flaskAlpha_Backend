@@ -1,7 +1,8 @@
 # FLAlpha
+## Technology stack
 ```
 {
-   "project stack by using": {
+   "used in the project: {
                             "Programe Language": "Python",
                             "Server": "Flask",
                             "API Maker": "Flask Restful",
