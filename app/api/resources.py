@@ -1,7 +1,7 @@
 from flask_restful import Resource, reqparse
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt, get_current_user
-from app.models import db, users, tokenblocklist, surveys
+from app.models import db, users, tokenblocklist, surveys, pages
 
 registerParser = reqparse.RequestParser()
 registerParser.add_argument("login", type=str)
@@ -18,7 +18,7 @@ surveyCreateParser.add_argument("title", type=str)
 surveyCreateParser.add_argument("description", type=str)
 surveyCreateParser.add_argument("logoPosition", type=str)
 surveyCreateParser.add_argument("date_creation", type=str)
-surveyCreateParser.add_argument("pages", type=list)
+surveyCreateParser.add_argument("pages", type=dict, action="append")
 
 class Register(Resource):
     def post(self):
@@ -91,14 +91,22 @@ class CreateSurvey(Resource):
     @jwt_required()
     def post(self):
         try:
-            survey = surveyCreateParser.parse_args()
             user = users.query.filter_by(login=get_current_user()).first()
-            new_survey = surveys(title=survey["title"], description=survey["description"],
-                                 logoPosition=survey["logoPosition"], date_creation=survey["date_creation"],
-                                pages=survey["pages"], user_id=user.id)
-            db.session.add(new_survey)
-            db.session.commit()
-            return {"msg": "success"}, 201
+            if user.role == "b":
+                survey = surveyCreateParser.parse_args()
+                new_survey = surveys(title=survey["title"], description=survey["description"],
+                                     logoPosition=survey["logoPosition"], date_creation=survey["date_creation"],
+                                     pages=[], user_id=user.id)
+                db.session.add(new_survey)
+                db.session.flush()
+                for i in range(len(survey["pages"])):
+                    new_page = pages(name=survey["pages"][i]["page_name"], elements=survey["pages"][i]["elements"],
+                                surveys_id=new_survey.id)
+                    db.session.add(new_page)
+                db.session.commit()
+                return {"msg": "success"}, 201
+            else:
+                return {"msg": "you dont have permission"}
         except Exception as e:
-            return {"msg": f"create survey error"}, 500
+            return {"msg": "survey create error"}, 500
 

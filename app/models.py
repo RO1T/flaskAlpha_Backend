@@ -45,9 +45,10 @@ class surveys(db.Model):
     page = db.relationship("pages", backref="surveys")
 
 class pages(db.Model):
-    def __init__(self, name, elements):
+    def __init__(self, name, elements, surveys_id):
         self.name = name
         self.elements = elements
+        self.surveys_id = surveys_id
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(), nullable=False)
