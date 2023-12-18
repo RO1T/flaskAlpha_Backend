@@ -1,7 +1,7 @@
 from flask_restful import Resource, reqparse
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt, get_current_user
-from app.models import db, users, tokenblocklist, surveys, pages
+from app.models import db, users, tokenblocklist, surveys, pages, questions
 
 registerParser = reqparse.RequestParser()
 registerParser.add_argument("login", type=str)
@@ -100,13 +100,23 @@ class CreateSurvey(Resource):
                 db.session.add(new_survey)
                 db.session.flush()
                 for i in range(len(survey["pages"])):
-                    new_page = pages(name=survey["pages"][i]["page_name"], elements=survey["pages"][i]["elements"],
+                    new_page = pages(name=survey["pages"][i]["page_name"], elements=[],
                                 surveys_id=new_survey.id)
                     db.session.add(new_page)
+                    db.session.flush()
+                    for j in range(len(survey["pages"][i]["elements"])):
+                        new_question = questions(type=survey["pages"][i]["elements"][j]["type"],
+                                                 name=survey["pages"][i]["elements"][j]["name"],
+                                                 isRequired=survey["pages"][i]["elements"][j].get("isRequired"),
+                                                 title=survey["pages"][i]["elements"][j].get("title"),
+                                                 placeholder=survey["pages"][i]["elements"][j].get("placeholder"),
+                                                 choice=survey["pages"][i]["elements"][j].get("choice"),
+                                                 page_id=new_page.id,)
+                        db.session.add(new_question)
                 db.session.commit()
                 return {"msg": "success"}, 201
             else:
                 return {"msg": "you dont have permission"}
         except Exception as e:
-            return {"msg": "survey create error"}, 500
+            return {"msg": f"survey create error {e}"}, 500
 

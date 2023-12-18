@@ -57,19 +57,21 @@ class pages(db.Model):
     question = db.relationship("questions", backref="pages")
 
 class questions(db.Model):
-    def __init__(self, type, name, isRequied, title, placeholder, choice):
+    def __init__(self, type, name, isRequired, title, placeholder, choice, page_id):
         self.type = type
         self.name = name
-        self.isRequied = isRequied
+        self.isRequired = isRequired
         self.title = title
         self.placeholder = placeholder
         self.choice = choice
+        self.page_id = page_id
 
     id = db.Column(db.Integer, primary_key=True)
+    type = db.Column(db.String(), nullable=False)
     name = db.Column(db.String(), nullable=False)
-    isRequied = db.Column(db.Boolean(), nullable=False)
-    title = db.Column(db.String(), nullable=False)
-    placeholder = db.Column(db.String(), nullable=False)
+    isRequired = db.Column(db.Boolean(), nullable=True)
+    title = db.Column(db.String(), nullable=True)
+    placeholder = db.Column(db.String(), nullable=True)
     choice = db.Column(ARRAY(db.String()), nullable=True)
     page_id = db.Column(db.Integer, db.ForeignKey("pages.id"))
 
