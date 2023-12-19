@@ -20,7 +20,6 @@ surveyCreateParser.add_argument("logoPosition", type=str)
 surveyCreateParser.add_argument("pages", type=dict, action="append")
 
 answerSendParser = reqparse.RequestParser()
-answerSendParser.add_argument("title", type=str)
 answerSendParser.add_argument("answers", type=list)
 
 
@@ -47,14 +46,15 @@ class GetUsers(Resource):
                 users_lst = users.query.all()
             else:
                 users_lst = users.query.filter_by(id=user_id).all()
-                if users_lst:
-                    users_slv = {}
-                    for user in users_lst:
-                        users_slv[user.id] = {"login": user.login, "password": user.hash_password,
-                                              "email": user.email, "role": user.role}
-                    return users_slv, 200
-                else:
-                    return {"msg": "user is not found"}
+
+            if users_lst:
+                users_slv = {}
+                for user in users_lst:
+                    users_slv[user.id] = {"login": user.login, "password": user.hash_password,
+                                            "email": user.email, "role": user.role}
+                return users_slv, 200
+            else:
+                return {"msg": "user is not found"}
         except Exception as e:
             {"message": "Something went wrong"}, 500
 
@@ -135,10 +135,15 @@ class SendAnswers(Resource):
     @jwt_required()
     def post(self, survey_id):
         #нужно добраться до questions (survey -> pages -> questions)
-        page = pages.query.filter_by(surveys_id=survey_id).first()
-        return {"msg": page.id}, 200
-        question = questions.query.filter_by(page_id=page.id).all()
         answer = answerSendParser.parse_args()
+        page_lst = pages.query.filter_by(surveys_id=survey_id).all()
+        for page in page_lst:
+            question_lst = questions.query.filter_by(page_id=page.id).all()
+            for question in question_lst:
+                new_answer = answers(title=question.name, answer=answer["answers"], question_id=question.id)
+                db.session.add(new_answer)
+        db.session.commit()
+        return {"msg": "answers has been add"}, 200
 
 class GetSurveys(Resource):
     @jwt_required()
@@ -148,15 +153,15 @@ class GetSurveys(Resource):
                 surveys_lst = surveys.query.all()
             else:
                 surveys_lst = surveys.query.filter_by(id=survey_id).all()
-                if surveys_lst:
-                    surveys_dict = {}
-                    for survey in surveys_lst:
-                        surveys_dict[survey.id] = {"title": survey.title, "description": survey.description,
-                                                    "logoPosition": survey.logoPosition,
-                                                    "date_creation": survey.date_creation.strftime("%Y-%m-%d %H:%M:%S"),
-                                                    "pages": [], "user_id": survey.user_id}
-                    return surveys_dict, 200
-                else:
-                    return {"msg": "survey is not found"}
+            if surveys_lst:
+                surveys_dict = {}
+                for survey in surveys_lst:
+                    surveys_dict[survey.id] = {"title": survey.title, "description": survey.description,
+                                                "logoPosition": survey.logoPosition,
+                                                "date_creation": survey.date_creation.strftime("%Y-%m-%d %H:%M:%S"),
+                                                "pages": [], "user_id": survey.user_id}
+                return surveys_dict, 200
+            else:
+                return {"msg": "survey is not found"}
         except Exception as e:
             return {"msg": f"getting surveys error {e}"}, 500
