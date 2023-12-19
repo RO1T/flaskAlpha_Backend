@@ -27,11 +27,10 @@ class users(db.Model):
         return id
 
 class surveys(db.Model):
-    def __init__(self, title, description, logoPosition, date_creation, pages, user_id):
+    def __init__(self, title, description, logoPosition, pages, user_id):
         self.title = title
         self.description = description
         self.logoPosition = logoPosition
-        self.date_creation = date_creation
         self.pages = pages
         self.user_id = user_id
 
@@ -57,13 +56,13 @@ class pages(db.Model):
     question = db.relationship("questions", backref="pages")
 
 class questions(db.Model):
-    def __init__(self, type, name, isRequired, title, placeholder, choice, page_id):
+    def __init__(self, type, name, isRequired, title, placeholder, choices, page_id):
         self.type = type
         self.name = name
         self.isRequired = isRequired
         self.title = title
         self.placeholder = placeholder
-        self.choice = choice
+        self.choices = choices
         self.page_id = page_id
 
     id = db.Column(db.Integer, primary_key=True)
@@ -72,7 +71,19 @@ class questions(db.Model):
     isRequired = db.Column(db.Boolean(), nullable=True)
     title = db.Column(db.String(), nullable=True)
     placeholder = db.Column(db.String(), nullable=True)
-    choice = db.Column(ARRAY(db.String()), nullable=True)
+    choices = db.Column(ARRAY(db.String()), nullable=True)
     page_id = db.Column(db.Integer, db.ForeignKey("pages.id"))
+    answer = db.relationship("answers", backref="questions")
+
+class answers(db.Model):
+    def __init__(self, title, answer, question_id):
+        self.title = title
+        self.answer = answer
+        self.question_id = question_id
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(), nullable=False)
+    answer = db.Column(ARRAY(db.String()), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey("questions.id"))
 
 
