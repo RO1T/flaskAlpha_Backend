@@ -165,3 +165,28 @@ class GetSurveys(Resource):
                 return {"msg": "survey is not found"}
         except Exception as e:
             return {"msg": f"getting surveys error {e}"}, 500
+
+class CompleteSurvey(Resource):
+    @jwt_required()
+    def get(self, survey_id):
+        if survey_id:
+            survey_slv = {}
+            survey = surveys.query.filter_by(id=survey_id).first()
+            page = pages.query.filter_by(surveys_id=survey_id).all()
+            print(page)
+            for p in page:
+                element = questions.query.filter_by(page_id=p.id).all()
+                print(element)
+                for e in element:
+                    attributes = {k: v for k, v in e.__dict__.items() if v is not None and k is not "_sa_instance_state"
+                                  and k is not "id"}
+                    p.elements.append(attributes)
+                pg_name = {"page_name": p.name, "elements": p.elements}
+                survey.pages.append(pg_name)
+            survey_slv[survey_id] = {"title": survey.title, "description": survey.description, "logoPosition": survey.logoPosition,
+                                     "date_creation": survey.date_creation.strftime("%Y-%m-%d %H:%M:%S"), "pages": survey.pages}
+            return survey_slv, 200
+        else:
+            return {"msg": "necessary id"}, 400
+
+
