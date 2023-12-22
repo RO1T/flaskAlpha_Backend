@@ -1,7 +1,7 @@
 from flask_restful import Resource, reqparse
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt, get_current_user
-from app.models import db, users, tokenblocklist, surveys
+from app.models import db, users, tokenblocklist, surveys, pages, questions, answers
 
 registerParser = reqparse.RequestParser()
 registerParser.add_argument("login", type=str)
@@ -17,8 +17,12 @@ surveyCreateParser = reqparse.RequestParser()
 surveyCreateParser.add_argument("title", type=str)
 surveyCreateParser.add_argument("description", type=str)
 surveyCreateParser.add_argument("logoPosition", type=str)
-surveyCreateParser.add_argument("date_creation", type=str)
-surveyCreateParser.add_argument("pages", type=list)
+surveyCreateParser.add_argument("pages", type=dict, action="append")
+
+answerSendParser = reqparse.RequestParser()
+answerSendParser.add_argument("answers", type=list)
+
+
 
 class Register(Resource):
     def post(self):
@@ -36,14 +40,21 @@ class Register(Resource):
             return {"message": "Something went wrong"}, 500
 
 class GetUsers(Resource):
-    def get(self):
+    def get(self, user_id=None):
         try:
-            users_lst = users.query.all()
-            users_slv = {}
-            for user in users_lst:
-                users_slv[user.id] = {"login": user.login, "password": user.hash_password,
-                                      "email": user.email, "role": user.role}
-            return users_slv, 200
+            if user_id == None:
+                users_lst = users.query.all()
+            else:
+                users_lst = users.query.filter_by(id=user_id).all()
+
+            if users_lst:
+                users_slv = {}
+                for user in users_lst:
+                    users_slv[user.id] = {"login": user.login, "password": user.hash_password,
+                                            "email": user.email, "role": user.role}
+                return users_slv, 200
+            else:
+                return {"msg": "user is not found"}
         except Exception as e:
             {"message": "Something went wrong"}, 500
 
@@ -91,14 +102,91 @@ class CreateSurvey(Resource):
     @jwt_required()
     def post(self):
         try:
-            survey = surveyCreateParser.parse_args()
             user = users.query.filter_by(login=get_current_user()).first()
-            new_survey = surveys(title=survey["title"], description=survey["description"],
-                                 logoPosition=survey["logoPosition"], date_creation=survey["date_creation"],
-                                pages=survey["pages"], user_id=user.id)
-            db.session.add(new_survey)
-            db.session.commit()
-            return {"msg": "success"}, 201
+            if user.role == "b":
+                survey = surveyCreateParser.parse_args()
+                new_survey = surveys(title=survey["title"], description=survey["description"],
+                                     logoPosition=survey["logoPosition"],
+                                     pages=[], user_id=user.id)
+                db.session.add(new_survey)
+                db.session.flush()
+                for i in range(len(survey["pages"])):
+                    new_page = pages(name=survey["pages"][i]["page_name"], elements=[],
+                                     surveys_id=new_survey.id)
+                    db.session.add(new_page)
+                    db.session.flush()
+                    for j in range(len(survey["pages"][i]["elements"])):
+                        new_question = questions(type=survey["pages"][i]["elements"][j]["type"],
+                                                 name=survey["pages"][i]["elements"][j]["name"],
+                                                 isRequired=survey["pages"][i]["elements"][j].get("isRequired"),
+                                                 title=survey["pages"][i]["elements"][j].get("title"),
+                                                 placeholder=survey["pages"][i]["elements"][j].get("placeholder"),
+                                                 choices=survey["pages"][i]["elements"][j].get("choices"),
+                                                 page_id=new_page.id,)
+                        db.session.add(new_question)
+                db.session.commit()
+                return {"msg": "success"}, 201
+            else:
+                return {"msg": "you dont have permission"}
         except Exception as e:
-            return {"msg": f"create survey error"}, 500
+            return {"msg": f"survey create error {e}"}, 500
+
+class SendAnswers(Resource):
+    @jwt_required()
+    def post(self, survey_id):
+        #нужно добраться до questions (survey -> pages -> questions)
+        answer = answerSendParser.parse_args()
+        page_lst = pages.query.filter_by(surveys_id=survey_id).all()
+        for page in page_lst:
+            question_lst = questions.query.filter_by(page_id=page.id).all()
+            for question in question_lst:
+                new_answer = answers(title=question.name, answer=answer["answers"], question_id=question.id)
+                db.session.add(new_answer)
+        db.session.commit()
+        return {"msg": "answers has been add"}, 200
+
+class GetSurveys(Resource):
+    @jwt_required()
+    def get(self, survey_id=None):
+        try:
+            if survey_id is None:
+                surveys_lst = surveys.query.all()
+            else:
+                surveys_lst = surveys.query.filter_by(id=survey_id).all()
+            if surveys_lst:
+                surveys_dict = {}
+                for survey in surveys_lst:
+                    surveys_dict[survey.id] = {"title": survey.title, "description": survey.description,
+                                                "logoPosition": survey.logoPosition,
+                                                "date_creation": survey.date_creation.strftime("%Y-%m-%d %H:%M:%S"),
+                                                "pages": [], "user_id": survey.user_id}
+                return surveys_dict, 200
+            else:
+                return {"msg": "survey is not found"}
+        except Exception as e:
+            return {"msg": f"getting surveys error {e}"}, 500
+
+class CompleteSurvey(Resource):
+    @jwt_required()
+    def get(self, survey_id):
+        if survey_id:
+            survey_slv = {}
+            survey = surveys.query.filter_by(id=survey_id).first()
+            page = pages.query.filter_by(surveys_id=survey_id).all()
+            print(page)
+            for p in page:
+                element = questions.query.filter_by(page_id=p.id).all()
+                print(element)
+                for e in element:
+                    attributes = {k: v for k, v in e.__dict__.items() if v is not None and k is not "_sa_instance_state"
+                                  and k is not "id"}
+                    p.elements.append(attributes)
+                pg_name = {"page_name": p.name, "elements": p.elements}
+                survey.pages.append(pg_name)
+            survey_slv[survey_id] = {"title": survey.title, "description": survey.description, "logoPosition": survey.logoPosition,
+                                     "date_creation": survey.date_creation.strftime("%Y-%m-%d %H:%M:%S"), "pages": survey.pages}
+            return survey_slv, 200
+        else:
+            return {"msg": "necessary id"}, 400
+
 

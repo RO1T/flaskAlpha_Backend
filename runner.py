@@ -2,7 +2,8 @@ from flask import Flask, render_template
 from flask_restful import Api
 from app.models import db, tokenblocklist, users
 from flask_jwt_extended import JWTManager
-from app.api.resources import Register, GetUsers, Login, RefreshToken, Logout, CreateSurvey
+from app.api.resources import Register, GetUsers, Login, RefreshToken, Logout, CreateSurvey, SendAnswers, GetSurveys,\
+    CompleteSurvey
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres:1@localhost:5432/postgres"
@@ -27,11 +28,16 @@ with app.app_context():
 
 api = Api(app)
 api.add_resource(Register, "/api/register/", "/api/b/register/")
-api.add_resource(GetUsers, "/api/users/")
+api.add_resource(GetUsers, "/api/users/", "/api/users/<int:user_id>/")
 api.add_resource(Login, "/api/login/", "/api/b/login/")
 api.add_resource(RefreshToken, "/api/refresh/")
 api.add_resource(Logout, "/api/logout/")
 api.add_resource(CreateSurvey, "/api/createsurvey/")
+api.add_resource(SendAnswers, "/api/completesurvey/<int:survey_id>/sendanswers/")
+api.add_resource(CompleteSurvey, "/api/completesurvey/<int:survey_id>/")
+# Сделать /api/completesurvey/<int:survey_id> (Получение конкретного опроса со всеми полями и pages для его прохождения, а не просмотра и тд)
+api.add_resource(GetSurveys, "/api/surveys/", "/api/surveys/<int:survey_id>/")
+
 
 @app.route("/")
 def index():
