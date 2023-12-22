@@ -20,7 +20,7 @@ surveyCreateParser.add_argument("logoPosition", type=str)
 surveyCreateParser.add_argument("pages", type=dict, action="append")
 
 answerSendParser = reqparse.RequestParser()
-answerSendParser.add_argument("answers", type=list)
+answerSendParser.add_argument("answers", action="append")
 
 
 
@@ -135,12 +135,14 @@ class SendAnswers(Resource):
     @jwt_required()
     def post(self, survey_id):
         #нужно добраться до questions (survey -> pages -> questions)
+        user = users.query.filter_by(login=get_current_user()).first()
         answer = answerSendParser.parse_args()
         page_lst = pages.query.filter_by(surveys_id=survey_id).all()
         for page in page_lst:
             question_lst = questions.query.filter_by(page_id=page.id).all()
-            for question in question_lst:
-                new_answer = answers(title=question.name, answer=answer["answers"], question_id=question.id)
+            for q in range(len(question_lst)):
+                new_answer = answers(title=question_lst[q].name, answer=answer["answers"][q],
+                                     question_id=question_lst[q].id)
                 db.session.add(new_answer)
         db.session.commit()
         return {"msg": "answers has been add"}, 200
@@ -173,18 +175,18 @@ class CompleteSurvey(Resource):
             survey_slv = {}
             survey = surveys.query.filter_by(id=survey_id).first()
             page = pages.query.filter_by(surveys_id=survey_id).all()
-            print(page)
             for p in page:
                 element = questions.query.filter_by(page_id=p.id).all()
-                print(element)
                 for e in element:
                     attributes = {k: v for k, v in e.__dict__.items() if v is not None and k is not "_sa_instance_state"
                                   and k is not "id"}
                     p.elements.append(attributes)
                 pg_name = {"page_name": p.name, "elements": p.elements}
                 survey.pages.append(pg_name)
-            survey_slv[survey_id] = {"title": survey.title, "description": survey.description, "logoPosition": survey.logoPosition,
-                                     "date_creation": survey.date_creation.strftime("%Y-%m-%d %H:%M:%S"), "pages": survey.pages}
+            survey_slv[survey_id] = {"title": survey.title, "description": survey.description,
+                                     "logoPosition": survey.logoPosition,
+                                     "date_creation": survey.date_creation.strftime("%Y-%m-%d %H:%M:%S"),
+                                     "pages": survey.pages}
             return survey_slv, 200
         else:
             return {"msg": "necessary id"}, 400

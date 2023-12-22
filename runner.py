@@ -35,7 +35,6 @@ api.add_resource(Logout, "/api/logout/")
 api.add_resource(CreateSurvey, "/api/createsurvey/")
 api.add_resource(SendAnswers, "/api/completesurvey/<int:survey_id>/sendanswers/")
 api.add_resource(CompleteSurvey, "/api/completesurvey/<int:survey_id>/")
-# Сделать /api/completesurvey/<int:survey_id> (Получение конкретного опроса со всеми полями и pages для его прохождения, а не просмотра и тд)
 api.add_resource(GetSurveys, "/api/surveys/", "/api/surveys/<int:survey_id>/")
 
 

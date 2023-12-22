@@ -83,7 +83,7 @@ class answers(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(), nullable=False)
-    answer = db.Column(ARRAY(db.String()), nullable=False)
+    answer = db.Column(db.String(), nullable=False)
     question_id = db.Column(db.Integer, db.ForeignKey("questions.id"))
 
 
