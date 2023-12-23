@@ -11,16 +11,16 @@ class Register(Resource):
             user = registerParser.parse_args()
             user_in_base = users.query.filter_by(login=user["login"]).first()
             if user_in_base:
-                return {'message': 'User {} already exists'.format(user['login'])}
+                return {'msg': 'User {} already exists'.format(user['login'])}
             else:
                 user["password"] = generate_password_hash(user["password"])
                 new_user = users(login=user["login"], hash_password=user["password"],
                                     email=user["email"], role=user["role"])
                 db.session.add(new_user)
                 db.session.commit()
-                return {'message': "user was created"}, 201
+                return {'msg': "user was created"}, 201
         except Exception as e:
-            return {"message": "Something went wrong"}, 500
+            return {"msg": "Something went wrong"}, 500
 
 class GetUsers(Resource):
     @jwt_required()
@@ -39,7 +39,7 @@ class GetUsers(Resource):
             else:
                 return {"msg": "user is not found"}
         except Exception as e:
-            {"message": "Something went wrong"}, 500
+            {"msg": "Something went wrong"}, 500
 
 class Login(Resource):
     def post(self):
@@ -50,15 +50,14 @@ class Login(Resource):
                 if (check_password_hash(user_in_base.hash_password, user["password"])):
                     access_token = create_access_token(identity=user['login'])
                     refresh_token = create_refresh_token(identity=user['login'])
-                    return {"message": "successful authorization",
-                            'access_token': access_token,
-                            'refresh_token': refresh_token
+                    return {"msg": "successful authorization",
+                            'access_token': access_token
                             }, 200
                 else:
-                    return {"message": "password is not correct"}, 400
-            return {"message": "user is not found"}, 404
+                    return {"msg": "password is not correct"}, 400
+            return {"msg": "user is not found"}, 404
         except Exception as e:
-            {"message": "Something went wrong"}, 500
+            {"msg": "login error"}, 500
 
 class Profile(Resource):
     @jwt_required()
@@ -116,19 +115,9 @@ class Logout(Resource):
             jti = get_jwt()["jti"]
             db.session.add(tokenblocklist(jti=jti))
             db.session.commit()
-            return {"msg": "JWT revoked"}, 200
+            return {"msg": "logout success"}, 200
         except Exception as e:
             return {"msg": "logout error"}, 500
-
-class RefreshToken(Resource):
-    @jwt_required(refresh=True)
-    def post(self):
-        try:
-            identity = get_jwt_identity()
-            access_token = create_access_token(identity=identity)
-            return {"access_token": access_token}, 200
-        except Exception as e:
-            return {"msg": "refresh error"}, 500
 
 class CreateSurvey(Resource):
     @jwt_required()
@@ -218,9 +207,7 @@ class CompleteSurvey(Resource):
                 for p in page:
                     element = questions.query.filter_by(page_id=p.id).all()
                     for e in element:
-                        attributes = {k: v for k, v in e.__dict__.items() if v != None and k != "_sa_instance_state"
-                                      and k != "id"}
-                        p.elements.append(attributes)
+                        p.elements.append(e.serialize())
                     pg_name = {"name": p.name, "elements": p.elements}
                     survey.pages.append(pg_name)
                 survey_slv[survey_id] = {"title": survey.title, "description": survey.description,
@@ -231,4 +218,4 @@ class CompleteSurvey(Resource):
             else:
                 return {"msg": "necessary id"}, 400
         except Exception as e:
-            return {"msg": "get survey for complete error"}, 500
+            return {"msg": f"get survey for complete error {e}"}, 500

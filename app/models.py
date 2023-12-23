@@ -91,6 +91,10 @@ class questions(db.Model):
     page_id = db.Column(db.Integer, db.ForeignKey("pages.id"))
     answer = db.relationship("answers", backref="questions")
 
+    def serialize(self):
+        fields = ["_sa_instance_state", "id", "page_id"]
+        return {k: v for k, v in self.__dict__.items() if v != None and k not in fields}
+
 class answers(db.Model):
     def __init__(self, title, answer, question_id, user_id):
         self.title = title
