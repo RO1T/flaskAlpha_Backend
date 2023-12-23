@@ -28,11 +28,9 @@ class users(db.Model):
         return id
 
 class profiles(db.Model):
-    def __init__(self, username, avatar_url, balance, complete_survey, user_id):
+    def __init__(self, username, avatar_url, user_id):
         self.username = username
         self.avatar_url = avatar_url
-        self.balance = balance
-        self.complete_survey = complete_survey
         self.user_id = user_id
 
     id = db.Column(db.Integer, primary_key=True)

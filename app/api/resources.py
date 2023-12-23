@@ -16,8 +16,6 @@ loginParser.add_argument("password", type=str)
 profileParser = reqparse.RequestParser()
 profileParser.add_argument("username", type=str)
 profileParser.add_argument("avatar_url", type=str)
-profileParser.add_argument("balance", type=int)
-profileParser.add_argument("complete_survey", type=int)
 
 surveyCreateParser = reqparse.RequestParser()
 surveyCreateParser.add_argument("title", type=str)
@@ -89,18 +87,36 @@ class Profile(Resource):
         try:
             profile = profileParser.parse_args()
             user = users.query.filter_by(login=get_current_user()).first()
-            profile_in_base = profiles.query.filter_by(username=profile["username"]).first()
-            if profile_in_base:
-                return {"msg": "this username already exists"}, 201
+            profile_in_base = profiles.query.filter_by(user_id=user.id).first()
+            username_in_base = profiles.query.filter_by(username=profile.username).first()
+            if profile_in_base or username_in_base:
+                return {"msg": "this user or username already exists"}, 201
             else:
                 new_profile = profiles(username=profile["username"], avatar_url=profile.get("avatar_url"),
-                                       balance=profile.get("balance"), complete_survey=profile.get("complete_survey"),
                                        user_id=user.id)
                 db.session.add(new_profile)
                 db.session.commit()
                 return {"msg": "success"}, 200
         except Exception as e:
             return {"msg": "create profile error"}, 500
+
+    @jwt_required()
+    def put(self):
+        try:
+            profile_args = profileParser.parse_args()
+            user = users.query.filter_by(login=get_current_user()).first()
+            profile = profiles.query.filter_by(user_id=user.id).first()
+            username_in_base = profiles.query.filter_by(username=profile_args.username).first()
+            if not username_in_base:
+                profile.username = profile_args["username"]
+                setattr(profile, profile.username, profile_args["username"])
+                db.session.commit()
+                return {"msg": "success change username"}, 200
+            else:
+                return {"msg": "this username already exists"}, 400
+
+        except Exception as e:
+            return {"msg": "refresh profile info error"}, 500
 
     @jwt_required()
     def get(self):
