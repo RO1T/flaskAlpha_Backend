@@ -1,56 +1,35 @@
 from flask_restful import Resource, reqparse
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt, get_current_user
+from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt, \
+    get_current_user
 from app.models import db, users, tokenblocklist, surveys, pages, questions, answers, profiles
-
-registerParser = reqparse.RequestParser()
-registerParser.add_argument("login", type=str)
-registerParser.add_argument("password", type=str)
-registerParser.add_argument("email", type=str)
-registerParser.add_argument("role", type=str)
-
-loginParser = reqparse.RequestParser()
-loginParser.add_argument("login", type=str)
-loginParser.add_argument("password", type=str)
-
-profileParser = reqparse.RequestParser()
-profileParser.add_argument("username", type=str)
-profileParser.add_argument("avatar_url", type=str)
-
-surveyCreateParser = reqparse.RequestParser()
-surveyCreateParser.add_argument("title", type=str)
-surveyCreateParser.add_argument("description", type=str)
-surveyCreateParser.add_argument("logoPosition", type=str)
-surveyCreateParser.add_argument("pages", type=dict, action="append")
-
-answerSendParser = reqparse.RequestParser()
-answerSendParser.add_argument("answers", action="append")
-
-
+from app.parsers.parsers import registerParser, loginParser, profileParser, surveyCreateParser, answerSendParser
 
 class Register(Resource):
     def post(self):
-        user = registerParser.parse_args()
-        user["password"] = generate_password_hash(user["password"])
-        new_user = users(login=user["login"], hash_password=user["password"],
-                            email=user["email"], role=user["role"])
-        if users.query.filter_by(login=user["login"]).first():
-            return {'message': 'User {} already exists'.format(user['login'])}
         try:
-            db.session.add(new_user)
-            db.session.commit()
-            return {'message': "user was created"}, 201
+            user = registerParser.parse_args()
+            user_in_base = users.query.filter_by(login=user["login"]).first()
+            if user_in_base:
+                return {'message': 'User {} already exists'.format(user['login'])}
+            else:
+                user["password"] = generate_password_hash(user["password"])
+                new_user = users(login=user["login"], hash_password=user["password"],
+                                    email=user["email"], role=user["role"])
+                db.session.add(new_user)
+                db.session.commit()
+                return {'message': "user was created"}, 201
         except Exception as e:
             return {"message": "Something went wrong"}, 500
 
 class GetUsers(Resource):
+    @jwt_required()
     def get(self, user_id=None):
         try:
             if user_id == None:
                 users_lst = users.query.all()
             else:
                 users_lst = users.query.filter_by(id=user_id).all()
-
             if users_lst:
                 users_slv = {}
                 for user in users_lst:
@@ -109,7 +88,6 @@ class Profile(Resource):
             username_in_base = profiles.query.filter_by(username=profile_args.username).first()
             if not username_in_base:
                 profile.username = profile_args["username"]
-                setattr(profile, profile.username, profile_args["username"])
                 db.session.commit()
                 return {"msg": "success change username"}, 200
             else:
@@ -130,8 +108,6 @@ class Profile(Resource):
                 return {"msg": "not profile"}, 201
         except Exception as e:
             return {"msg": "get profile error"}, 500
-
-
 
 class Logout(Resource):
     @jwt_required()
@@ -162,7 +138,7 @@ class CreateSurvey(Resource):
             if user.role == "b":
                 survey = surveyCreateParser.parse_args()
                 new_survey = surveys(title=survey["title"], description=survey["description"],
-                                     logoPosition=survey["logoPosition"],
+                                     logoPosition=survey["logoPosition"], value=survey["value"],
                                      pages=[], user_id=user.id)
                 db.session.add(new_survey)
                 db.session.flush()
@@ -190,18 +166,24 @@ class CreateSurvey(Resource):
 class SendAnswers(Resource):
     @jwt_required()
     def post(self, survey_id):
-        #нужно добраться до questions (survey -> pages -> questions)
-        user = users.query.filter_by(login=get_current_user()).first()
-        answer = answerSendParser.parse_args()
-        page_lst = pages.query.filter_by(surveys_id=survey_id).all()
-        for page in page_lst:
-            question_lst = questions.query.filter_by(page_id=page.id).all()
-            for i in range(len(question_lst)):
-                new_answer = answers(title=question_lst[i].name, answer=answer["answers"][i],
-                                     question_id=question_lst[i].id)
-                db.session.add(new_answer)
-        db.session.commit()
-        return {"msg": "answers has been add"}, 200
+        try:
+            user = users.query.filter_by(login=get_current_user()).first()
+            answer = answerSendParser.parse_args()
+            survey = surveys.query.filter_by(id=survey_id).first()
+            page_lst = pages.query.filter_by(surveys_id=survey_id).all()
+            for page in page_lst:
+                question_lst = questions.query.filter_by(page_id=page.id).all()
+                for i in range(len(question_lst)):
+                    new_answer = answers(title=question_lst[i].name, answer=answer["answers"][i],
+                                         question_id=question_lst[i].id, user_id=user.id)
+                    db.session.add(new_answer)
+            profile = profiles.query.filter_by(user_id=user.id).first()
+            profile.balance += survey.value
+            profile.complete_survey += 1
+            db.session.commit()
+            return {"msg": "answers has been add"}, 200
+        except Exception as e:
+            return {"msg": "answers add error"}, 500
 
 class GetSurveys(Resource):
     @jwt_required()
@@ -217,6 +199,7 @@ class GetSurveys(Resource):
                     surveys_dict[survey.id] = {"title": survey.title, "description": survey.description,
                                                 "logoPosition": survey.logoPosition,
                                                 "date_creation": survey.date_creation.strftime("%Y-%m-%d %H:%M:%S"),
+                                                "value": survey.value,
                                                 "pages": [], "user_id": survey.user_id}
                 return surveys_dict, 200
             else:
@@ -243,11 +226,9 @@ class CompleteSurvey(Resource):
                 survey_slv[survey_id] = {"title": survey.title, "description": survey.description,
                                          "logoPosition": survey.logoPosition,
                                          "date_creation": survey.date_creation.strftime("%Y-%m-%d %H:%M:%S"),
-                                         "pages": survey.pages}
+                                         "value": survey.value, "pages": survey.pages}
                 return survey_slv, 200
             else:
                 return {"msg": "necessary id"}, 400
         except Exception as e:
             return {"msg": "get survey for complete error"}, 500
-
-

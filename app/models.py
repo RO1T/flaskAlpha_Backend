@@ -41,10 +41,11 @@ class profiles(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
 
 class surveys(db.Model):
-    def __init__(self, title, description, logoPosition, pages, user_id):
+    def __init__(self, title, description, logoPosition, value, pages, user_id):
         self.title = title
         self.description = description
         self.logoPosition = logoPosition
+        self.value = value
         self.pages = pages
         self.user_id = user_id
 
@@ -52,6 +53,7 @@ class surveys(db.Model):
     title = db.Column(db.String(), nullable=False)
     description = db.Column(db.String())
     logoPosition = db.Column(db.String())
+    value = db.Column(db.Integer, nullable=False)
     date_creation = db.Column(db.DateTime(), nullable=False, default=datetime.utcnow)
     pages = db.Column(ARRAY(JSONB), nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
@@ -90,14 +92,16 @@ class questions(db.Model):
     answer = db.relationship("answers", backref="questions")
 
 class answers(db.Model):
-    def __init__(self, title, answer, question_id):
+    def __init__(self, title, answer, question_id, user_id):
         self.title = title
         self.answer = answer
         self.question_id = question_id
+        self.user_id = user_id
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(), nullable=False)
     answer = db.Column(db.String(), nullable=False)
     question_id = db.Column(db.Integer, db.ForeignKey("questions.id"))
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
 
 
