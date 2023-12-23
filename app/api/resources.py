@@ -114,7 +114,6 @@ class Profile(Resource):
                 return {"msg": "success change username"}, 200
             else:
                 return {"msg": "this username already exists"}, 400
-
         except Exception as e:
             return {"msg": "refresh profile info error"}, 500
 
@@ -129,7 +128,6 @@ class Profile(Resource):
                 return profile_slv, 200
             else:
                 return {"msg": "not profile"}, 201
-
         except Exception as e:
             return {"msg": "get profile error"}, 500
 
