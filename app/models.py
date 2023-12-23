@@ -21,10 +21,26 @@ class users(db.Model):
     email = db.Column(db.String(120), nullable=False)
     role = db.Column(db.String(1), nullable=False)
     survey = db.relationship("surveys", backref="users")
+    profile = db.relationship("profiles", backref="users")
 
     @classmethod
     def get_by_id(self, id):
         return id
+
+class profiles(db.Model):
+    def __init__(self, username, avatar_url, balance, complete_survey, user_id):
+        self.username = username
+        self.avatar_url = avatar_url
+        self.balance = balance
+        self.complete_survey = complete_survey
+        self.user_id = user_id
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(), nullable=False)
+    avatar_url = db.Column(db.String(), nullable=True)
+    balance = db.Column(db.Integer, default=0)
+    complete_survey = db.Column(db.Integer, nullable=True, default=0)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
 
 class surveys(db.Model):
     def __init__(self, title, description, logoPosition, pages, user_id):

@@ -3,7 +3,7 @@ from flask_restful import Api
 from app.models import db, tokenblocklist, users
 from flask_jwt_extended import JWTManager
 from app.api.resources import Register, GetUsers, Login, RefreshToken, Logout, CreateSurvey, SendAnswers, GetSurveys,\
-    CompleteSurvey
+    CompleteSurvey, Profile
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres:1@localhost:5432/postgres"
@@ -30,6 +30,7 @@ api = Api(app)
 api.add_resource(Register, "/api/register/", "/api/b/register/")
 api.add_resource(GetUsers, "/api/users/", "/api/users/<int:user_id>/")
 api.add_resource(Login, "/api/login/", "/api/b/login/")
+api.add_resource(Profile, "/api/profile/")
 api.add_resource(RefreshToken, "/api/refresh/")
 api.add_resource(Logout, "/api/logout/")
 api.add_resource(CreateSurvey, "/api/createsurvey/")

@@ -1,7 +1,7 @@
 from flask_restful import Resource, reqparse
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt, get_current_user
-from app.models import db, users, tokenblocklist, surveys, pages, questions, answers
+from app.models import db, users, tokenblocklist, surveys, pages, questions, answers, profiles
 
 registerParser = reqparse.RequestParser()
 registerParser.add_argument("login", type=str)
@@ -12,6 +12,12 @@ registerParser.add_argument("role", type=str)
 loginParser = reqparse.RequestParser()
 loginParser.add_argument("login", type=str)
 loginParser.add_argument("password", type=str)
+
+profileParser = reqparse.RequestParser()
+profileParser.add_argument("username", type=str)
+profileParser.add_argument("avatar_url", type=str)
+profileParser.add_argument("balance", type=int)
+profileParser.add_argument("complete_survey", type=int)
 
 surveyCreateParser = reqparse.RequestParser()
 surveyCreateParser.add_argument("title", type=str)
@@ -30,7 +36,7 @@ class Register(Resource):
         user["password"] = generate_password_hash(user["password"])
         new_user = users(login=user["login"], hash_password=user["password"],
                             email=user["email"], role=user["role"])
-        if users.query.filter_by(email=user["login"]).first():
+        if users.query.filter_by(login=user["login"]).first():
             return {'message': 'User {} already exists'.format(user['login'])}
         try:
             db.session.add(new_user)
@@ -76,6 +82,42 @@ class Login(Resource):
             return {"message": "user is not found"}, 404
         except Exception as e:
             {"message": "Something went wrong"}, 500
+
+class Profile(Resource):
+    @jwt_required()
+    def post(self):
+        try:
+            profile = profileParser.parse_args()
+            user = users.query.filter_by(login=get_current_user()).first()
+            profile_in_base = profiles.query.filter_by(username=profile["username"]).first()
+            if profile_in_base:
+                return {"msg": "this username already exists"}, 201
+            else:
+                new_profile = profiles(username=profile["username"], avatar_url=profile.get("avatar_url"),
+                                       balance=profile.get("balance"), complete_survey=profile.get("complete_survey"),
+                                       user_id=user.id)
+                db.session.add(new_profile)
+                db.session.commit()
+                return {"msg": "success"}, 200
+        except Exception as e:
+            return {"msg": "create profile error"}, 500
+
+    @jwt_required()
+    def get(self):
+        try:
+            user = users.query.filter_by(login=get_current_user()).first()
+            profile = profiles.query.filter_by(user_id=user.id).first()
+            if profile:
+                profile_slv = {"username": profile.username, "avatar_url": profile.avatar_url, "balance": profile.balance,
+                            "completed_surveys": profile.complete_survey}
+                return profile_slv, 200
+            else:
+                return {"msg": "not profile"}, 201
+
+        except Exception as e:
+            return {"msg": "get profile error"}, 500
+
+
 
 class Logout(Resource):
     @jwt_required()
@@ -140,9 +182,9 @@ class SendAnswers(Resource):
         page_lst = pages.query.filter_by(surveys_id=survey_id).all()
         for page in page_lst:
             question_lst = questions.query.filter_by(page_id=page.id).all()
-            for q in range(len(question_lst)):
-                new_answer = answers(title=question_lst[q].name, answer=answer["answers"][q],
-                                     question_id=question_lst[q].id)
+            for i in range(len(question_lst)):
+                new_answer = answers(title=question_lst[i].name, answer=answer["answers"][i],
+                                     question_id=question_lst[i].id)
                 db.session.add(new_answer)
         db.session.commit()
         return {"msg": "answers has been add"}, 200
@@ -171,24 +213,27 @@ class GetSurveys(Resource):
 class CompleteSurvey(Resource):
     @jwt_required()
     def get(self, survey_id):
-        if survey_id:
-            survey_slv = {}
-            survey = surveys.query.filter_by(id=survey_id).first()
-            page = pages.query.filter_by(surveys_id=survey_id).all()
-            for p in page:
-                element = questions.query.filter_by(page_id=p.id).all()
-                for e in element:
-                    attributes = {k: v for k, v in e.__dict__.items() if v is not None and k is not "_sa_instance_state"
-                                  and k is not "id"}
-                    p.elements.append(attributes)
-                pg_name = {"page_name": p.name, "elements": p.elements}
-                survey.pages.append(pg_name)
-            survey_slv[survey_id] = {"title": survey.title, "description": survey.description,
-                                     "logoPosition": survey.logoPosition,
-                                     "date_creation": survey.date_creation.strftime("%Y-%m-%d %H:%M:%S"),
-                                     "pages": survey.pages}
-            return survey_slv, 200
-        else:
-            return {"msg": "necessary id"}, 400
+        try:
+            if survey_id:
+                survey_slv = {}
+                survey = surveys.query.filter_by(id=survey_id).first()
+                page = pages.query.filter_by(surveys_id=survey_id).all()
+                for p in page:
+                    element = questions.query.filter_by(page_id=p.id).all()
+                    for e in element:
+                        attributes = {k: v for k, v in e.__dict__.items() if v != None and k != "_sa_instance_state"
+                                      and k != "id"}
+                        p.elements.append(attributes)
+                    pg_name = {"name": p.name, "elements": p.elements}
+                    survey.pages.append(pg_name)
+                survey_slv[survey_id] = {"title": survey.title, "description": survey.description,
+                                         "logoPosition": survey.logoPosition,
+                                         "date_creation": survey.date_creation.strftime("%Y-%m-%d %H:%M:%S"),
+                                         "pages": survey.pages}
+                return survey_slv, 200
+            else:
+                return {"msg": "necessary id"}, 400
+        except Exception as e:
+            return {"msg": "get survey for complete error"}, 500
 
 
