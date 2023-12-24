@@ -21,16 +21,31 @@ class users(db.Model):
     email = db.Column(db.String(120), nullable=False)
     role = db.Column(db.String(1), nullable=False)
     survey = db.relationship("surveys", backref="users")
+    profile = db.relationship("profiles", backref="users")
 
     @classmethod
     def get_by_id(self, id):
         return id
 
+class profiles(db.Model):
+    def __init__(self, username, avatar_url, user_id):
+        self.username = username
+        self.avatar_url = avatar_url
+        self.user_id = user_id
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(), nullable=False)
+    avatar_url = db.Column(db.String(), nullable=True)
+    balance = db.Column(db.Integer, default=0)
+    complete_survey = db.Column(db.Integer, nullable=True, default=0)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+
 class surveys(db.Model):
-    def __init__(self, title, description, logoPosition, pages, user_id):
+    def __init__(self, title, description, logoPosition, value, pages, user_id):
         self.title = title
         self.description = description
         self.logoPosition = logoPosition
+        self.value = value
         self.pages = pages
         self.user_id = user_id
 
@@ -38,6 +53,7 @@ class surveys(db.Model):
     title = db.Column(db.String(), nullable=False)
     description = db.Column(db.String())
     logoPosition = db.Column(db.String())
+    value = db.Column(db.Integer, nullable=False)
     date_creation = db.Column(db.DateTime(), nullable=False, default=datetime.utcnow)
     pages = db.Column(ARRAY(JSONB), nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
@@ -75,15 +91,21 @@ class questions(db.Model):
     page_id = db.Column(db.Integer, db.ForeignKey("pages.id"))
     answer = db.relationship("answers", backref="questions")
 
+    def serialize(self):
+        fields = ["_sa_instance_state", "id", "page_id"]
+        return {k: v for k, v in self.__dict__.items() if v != None and k not in fields}
+
 class answers(db.Model):
-    def __init__(self, title, answer, question_id):
+    def __init__(self, title, answer, question_id, user_id):
         self.title = title
         self.answer = answer
         self.question_id = question_id
+        self.user_id = user_id
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(), nullable=False)
-    answer = db.Column(ARRAY(db.String()), nullable=False)
+    answer = db.Column(db.String(), nullable=False)
     question_id = db.Column(db.Integer, db.ForeignKey("questions.id"))
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
 
 
