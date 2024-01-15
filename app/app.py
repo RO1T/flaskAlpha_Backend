@@ -1,10 +1,12 @@
 from app.config.config import postgresqlConfig
 from app.config.db import db
 from app.models.user import TokenBlocklist, Users
-from app.resources.surveys import CreateSurvey, SendAnswers, CompleteSurvey, GetSurveys
+from app.resources.surveys import CreateSurvey, SendAnswers, CompleteSurvey, GetSurveys, GetAnswers, MySurveys
 from app.resources.user import Register, GetUsers, Login, Profile, Logout
-from flask import Flask, render_template
+from flask import Flask
 from datetime import timedelta
+
+from flask_cors import CORS
 from flask_restful import Api
 from flask_jwt_extended import JWTManager
 
@@ -15,6 +17,7 @@ app.config['JWT_SECRET_KEY'] = 'jwt-secret-string'
 
 jwt = JWTManager(app)
 api = Api(app)
+CORS(app, origins='*')
 
 with app.app_context():
     db.init_app(app)
@@ -44,3 +47,5 @@ api.add_resource(CreateSurvey, "/api/createsurvey/")
 api.add_resource(SendAnswers, "/api/completesurvey/<int:survey_id>/sendanswers/")
 api.add_resource(CompleteSurvey, "/api/completesurvey/<int:survey_id>/")
 api.add_resource(GetSurveys, "/api/surveys/", "/api/surveys/<int:survey_id>/")
+api.add_resource(GetAnswers, "/api/getanswers/<int:survey_id>/")
+api.add_resource(MySurveys, "/api/mysurveys/")

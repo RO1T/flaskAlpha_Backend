@@ -4,19 +4,15 @@ from sqlalchemy.dialects.postgresql import JSONB, ARRAY
 
 
 class Surveys(db.Model):
-    def __init__(self, title, description, logoPosition, value, pages, user_id):
+    def __init__(self, title, description, pages, user_id):
         self.title = title
         self.description = description
-        self.logoPosition = logoPosition
-        self.value = value
         self.pages = pages
         self.user_id = user_id
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(), nullable=False)
     description = db.Column(db.String())
-    logoPosition = db.Column(db.String())
-    value = db.Column(db.Integer, nullable=False)
     date_creation = db.Column(db.DateTime(), nullable=False, default=datetime.utcnow)
     pages = db.Column(ARRAY(JSONB), nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
@@ -24,15 +20,15 @@ class Surveys(db.Model):
 
 
 class Pages(db.Model):
-    def __init__(self, name, elements, surveys_id):
-        self.name = name
+    def __init__(self, title, elements, survey_id):
+        self.title = title
         self.elements = elements
-        self.surveys_id = surveys_id
+        self.survey_id = survey_id
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(), nullable=False)
+    title = db.Column(db.String(), nullable=False)
     elements = db.Column(ARRAY(JSONB), nullable=False)
-    surveys_id = db.Column(db.Integer, db.ForeignKey("surveys.id"))
+    survey_id = db.Column(db.Integer, db.ForeignKey("surveys.id"))
     question = db.relationship("Questions", backref="pages")
 
 
